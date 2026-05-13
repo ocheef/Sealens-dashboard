@@ -1,0 +1,42 @@
+name: Hourly Dashboard Refresh
+
+on:
+  schedule:
+    # Runs at minute 0 of every hour, UTC
+    # In SGT (UTC+8) this means: 08:00, 09:00, 10:00 ... 07:00 SGT
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    # Adds a "Run workflow" button in the GitHub Actions UI
+    # so you can trigger a manual refresh any time
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to commit and push the updated index.html
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests feedparser
+
+      - name: Run refresh script
+        run: python refresh.py
+
+      - name: Commit and push updated dashboard
+        run: |
+          git config user.name  "SEALENS Bot"
+          git config user.email "sealens-bot@noreply"
+          git add index.html refresh.log
+          # Only commit if something actually changed
+          git diff --staged --quiet \
+            && echo "No changes — skipping commit" \
+            || git commit -m "Auto-refresh: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push
